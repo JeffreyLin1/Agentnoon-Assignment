@@ -1,156 +1,99 @@
 <script setup>
-    import { ref, onMounted } from 'vue';
-    import * as d3 from 'd3';
-    import Tree from './components/tree.vue'; 
-    import '@/assets/main.css';
+import { ref, onMounted } from 'vue';
+import * as d3 from 'd3';
+import Tree from './components/tree.vue'; 
+import '@/assets/main.css';
 
+const treeData = ref(null);
+const csvFile = ref(
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vR-wJZpg2d_sAskHkxoR5ZFW7eFtTeljRcaiVWtoB5foj0Ac2_0QT18HXDgwm2C4eQbFHC-Zg9dEABs/pub?gid=0&single=true&output=csv'
+);
+const userInput = ref(csvFile.value);
+const zoomLevel = ref(1); // Zoom level for the tree container
 
-    const treeData = ref(null);
+async function loadCSV(url) {
+  try {
+    const response = await fetch(url);
+    const text = await response.text();
+    const csvData = d3.csvParse(text);
 
-
-    const csvFile = ref('https://docs.google.com/spreadsheets/d/e/2PACX-1vR-wJZpg2d_sAskHkxoR5ZFW7eFtTeljRcaiVWtoB5foj0Ac2_0QT18HXDgwm2C4eQbFHC-Zg9dEABs/pub?gid=0&single=true&output=csv');
-
-
-    const userInput = ref(csvFile.value);
-
-    async function loadCSV(url) {
-      try {
- 
-        const response = await fetch(url);
-        const text = await response.text();
-
-
-        const csvData = d3.csvParse(text);
-
-        console.log('Parsed CSV Data:', csvData);
-
-        csvData.forEach(row => {
-          row["Employee Id"] = row["Employee Id"].trim();
-          row.Manager = row.Manager ? row.Manager.trim() : null;
-        });
-
-
-        const root = d3.stratify()
-          .id((d) => d["Employee Id"]) 
-          .parentId((d) => d["Manager"]) 
-          (csvData);
-
-        console.log("Processed Hierarchy Data:", root.descendants()[0]);
-        treeData.value = root;
-      } catch (error) {
-        console.error('Error fetching or processing CSV data:', error);
-        alert('Failed to load CSV. Please check the URL.');
-      }
-    }
-
-  
-    onMounted(() => {
-      loadCSV(csvFile.value);
+    csvData.forEach((row) => {
+      row['Employee Id'] = row['Employee Id'].trim();
+      row.Manager = row.Manager ? row.Manager.trim() : null;
     });
 
-    function updateCSV() {
-      csvFile.value = userInput.value;
-      loadCSV(csvFile.value);
-    }
+    const root = d3
+      .stratify()
+      .id((d) => d['Employee Id'])
+      .parentId((d) => d['Manager'])(csvData);
+
+    treeData.value = root;
+  } catch (error) {
+    console.error('Error fetching or processing CSV data:', error);
+    alert('Failed to load CSV. Please check the URL.');
+  }
+}
+
+onMounted(() => {
+  loadCSV(csvFile.value);
+});
+
+function updateCSV() {
+  csvFile.value = userInput.value;
+  loadCSV(csvFile.value);
+}
+
+// Zoom control functions
+function zoomIn() {
+  zoomLevel.value = Math.min(zoomLevel.value + 0.2, 2); // Max zoom: 2x
+}
+
+function zoomOut() {
+  zoomLevel.value = Math.max(zoomLevel.value - 0.2, 0.5); // Min zoom: 0.5x
+}
 </script>
+
 <template>
-    <div
-        class="min-w-screen bg-gray-100 flex flex-col items-center justify-center p-4"
-    >
-        <!-- Title -->
-
-        <!-- URL Input and Button -->
-        <div
-            style="
-                margin-bottom: 40px;
-                margin-top:80px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                width: 80%;
-                transform: translateX(10%);
-                
-            "
+    <div class="min-h-screen flex flex-col items-center justify-start pt-8"
+    style="background-color: #e6eff0;">
+      <!-- Logo and Title -->
+      <div class="mb-10 text-center" >
+        <img src="/agentnoonIcon.png" alt="Logo" class="w-70 h-20 mx-auto" />
+        <h1 class="text-2xl font-bold text-gray-800 mt-4">
+          Create your organization diagram in
+          <span class="text-blue-600 italic">seconds</span>
+        </h1>
+      </div>
+  
+      <!-- URL Input Section -->
+      <div class="flex flex-col items-center mb-8 w-80">
+        <label
+          for="csv-url"
+          class="block text-lg font-semibold text-gray-700 mb-2"
         >
-            <img
-                src="/agentnoonIcon.png"
-                width="15%"
-                height="15%"
-                
-            />
-            <label
-                for="csv-url"
-                style="
-                    
-                    font-size: 30px;
-                    font-weight: bold;
-                    color: #000;
-                    margin-bottom: 10px;
-                    font-family: sans-serif;
-                "
+          Enter CSV URL:
+        </label>
+        <div class="flex w-full">
+          <input
+            id="csv-url"
+            type="text"
+            v-model="userInput"
+            placeholder="Enter CSV URL here..."
+            class="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            @click="updateCSV"
+            class="px-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 transition"
+          >
             >
-            Create your organization diagram in 
-            <span style="color: #004dec;text-decoration: underline;font-weight:bold;">seconds</span>.
-            </label>
-            </div>
-            <div style="text-align: center; font-size: 16px; margin-top: 10px; color: #666;">
-            <label
-                for="csv-url"
-                style="
-                    display: block;
-                    font-size: 18px;
-                    font-weight: bold;
-                    color: #333;
-                    font-family: sans-serif;
-                    margin-bottom: 10px;
-                    transform: translateX(-1%);
-                "
-            >
-                Enter CSV URL:
-            </label>
-            <div style="margin-bottom: 20px; position: relative; display: inline-block; width: 80%; ">
-            <input
-                id="csv-url"
-                type="text"
-                v-model="userInput"
-                placeholder="Enter CSV URL here..."
-                style="
-                    width: 300px;
-                    padding: 10px 45px 10px 5px;
-                    border: 2px solid #ccc;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    color: #555;
-                    margin-bottom: 15px;
-                    
-                "
-                
-            />
-            <button
-                @click="updateCSV"
-                style="
-                    padding: 8px 15px;
-                    background-color: white;
-                    color: #004dec;
-                    font-size: 14px;
-                    transform: translateX(-100%);
-                    font-weight: bold;
-                    border: 2px solid #ccc;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    transition: background-color 0.3s ease;
-                "
-                @mouseover="(e) => e.target.style.backgroundColor = '#929ac4'"
-                @mouseout="(e) => e.target.style.backgroundColor = 'white'"
-            >
-            >
-            </button>
-          </div>
+          </button>
         </div>
-        <div>
-            <tree v-if="treeData" :data="treeData" />
-        </div>
-
-        <!-- Tree Component -->
+      </div>
+  
+      <!-- Tree Component -->
+      <div class="rounded-lg w-full max-w-8xl h-[140vh] overflow-auto">
+        <tree v-if="treeData" :data="treeData" />
+      </div>
     </div>
-</template>
+  </template>
+  

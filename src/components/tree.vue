@@ -28,64 +28,87 @@
     function closeModal() {
         showModal.value = false;
     }
-    function calculateTotalDescendants(node) {
-        
-        if (!node.children) {
-            node.data.totalDescendants = 0;
-            return 0;
-        }
-
-       
-        const totalDescendants = node.children.reduce((sum, child) => {
-            return sum + calculateTotalDescendants(child) + 1; // Add 1 for the child itself
-        }, 0);
-
-        node.data.totalDescendants = totalDescendants;
-        return totalDescendants;
+    function calculateTotalDescendants(node, memo = new Map()) {
+    // Check if the result for this node is already in the memo cache
+    if (memo.has(node)) {
+        return memo.get(node);
     }
-    function calculateCosts(node) {
 
-        if (!node.children) {
-            const salary = parseFloat(node.data.data.Salary) || 0;
-            node.data.managementCost = 0;
-            node.data.icCost = salary;
-            node.data.totalCost = salary;
-            node.data.managementCostRatio = 0; 
-            return {
-                managementCost: 0,
-                icCost: salary,
-                totalCost: salary,
-            };
-        }
+    if (!node.children) {
+        node.data.totalDescendants = 0;
+        memo.set(node, 0); // Cache the result
+        return 0;
+    }
 
-    
-        let managementCost = 0;
-        let icCost = 0;
-        let totalCost = parseFloat(node.data.data.Salary) || 0;
+    // Calculate the total descendants recursively
+    const totalDescendants = node.children.reduce((sum, child) => {
+        return sum + calculateTotalDescendants(child, memo) + 1; // Add 1 for the child itself
+    }, 0);
 
-        node.children.forEach((child) => {
-            const childCosts = calculateCosts(child);
-            managementCost += childCosts.managementCost;
-            icCost += childCosts.icCost;
-            totalCost += childCosts.totalCost;
-        });
+    node.data.totalDescendants = totalDescendants;
+    memo.set(node, totalDescendants); // Cache the result
 
+    return totalDescendants;
+}
+
+function calculateCosts(node, memo = new Map()) {
+    // Check if the result for this node is already in the memo cache
+    if (memo.has(node)) {
+        return memo.get(node);
+    }
+
+    if (!node.children) {
         const salary = parseFloat(node.data.data.Salary) || 0;
-        if (node.children.length > 0) {
-            managementCost += salary; 
-        }
-
-        node.data.managementCost = managementCost;
-        node.data.icCost = icCost;
-        node.data.totalCost = totalCost;
-        node.data.managementCostRatio = icCost > 0 ? (icCost / managementCost).toFixed(2) : 0;
-
-        return {
-            managementCost,
-            icCost,
-            totalCost,
+        const costs = {
+            managementCost: 0,
+            icCost: salary,
+            totalCost: salary,
+            managementCostRatio: 0,
         };
+        node.data.managementCost = costs.managementCost;
+        node.data.icCost = costs.icCost;
+        node.data.totalCost = costs.totalCost;
+        node.data.managementCostRatio = costs.managementCostRatio;
+
+        memo.set(node, costs); // Cache the result
+        return costs;
     }
+
+    let managementCost = 0;
+    let icCost = 0;
+    let totalCost = parseFloat(node.data.data.Salary) || 0;
+
+    // Calculate costs recursively for children
+    node.children.forEach((child) => {
+        const childCosts = calculateCosts(child, memo);
+        managementCost += childCosts.managementCost;
+        icCost += childCosts.icCost;
+        totalCost += childCosts.totalCost;
+    });
+
+    const salary = parseFloat(node.data.data.Salary) || 0;
+    if (node.children.length > 0) {
+        managementCost += salary; // Add salary to management cost if the node has children
+    }
+
+    const costs = {
+        managementCost,
+        icCost,
+        totalCost,
+        managementCostRatio: icCost > 0 ? (icCost / managementCost).toFixed(2) : 0,
+    };
+
+    // Update the node with calculated costs
+    node.data.managementCost = costs.managementCost;
+    node.data.icCost = costs.icCost;
+    node.data.totalCost = costs.totalCost;
+    node.data.managementCostRatio = costs.managementCostRatio;
+
+    memo.set(node, costs); // Cache the result
+
+    return costs;
+}
+
     function formatNumber(num) {
         if (num >= 1e6) {
             return (num / 1e6).toFixed(0) + ' M';
@@ -138,8 +161,8 @@
         root.descendants().forEach((d) => {
         d.x += d.depth * 200;
         });
-        calculateTotalDescendants(root);
-        calculateCosts(root);
+        calculateTotalDescendants(root, new Map());
+        calculateCosts(root, new Map());
         root.descendants().forEach((d, i) => {
         d.id = i;
         d._children = d.children;
@@ -265,6 +288,14 @@
             }
             return '#939393'; 
         }) 
+            .attr('stroke', (d) => {
+            const fillColor = d3.color(colorScale(d.data.position)); 
+            if (fillColor) {
+                const darkerColor = fillColor.darker(1.1); 
+                return darkerColor.formatHex(); 
+            }
+            return '#939393'; 
+        }) 
             .attr('stroke-width', 1.2)
             .attr('rx', 3)
             .attr('ry', 3);
@@ -300,7 +331,7 @@
             .text(d => d.data.name)
             .attr('fill', '#000');
         nodeEnter.append('text')
-            .attr('dx', '0.35em')
+            .attr('dx', '0.7em')
             .attr('text-anchor', 'middle')
             .attr('y', 40)
             .attr('font-size', '7px')
@@ -370,7 +401,7 @@
 
 
         nodeEnter.append('text')
-            .attr('dx', '0.6em')
+            .attr('dx', '0.7em')
             .attr('text-anchor', 'middle')
             .attr('y', 60)
             .attr('font-size', '6px')
@@ -468,126 +499,89 @@
 
 <template>
     <div>
-        <svg ref="svgContainer"></svg>
+      <!-- SVG Container -->
+      <svg ref="svgContainer" class="w-full h-full"></svg>
+  
+      <!-- Modal -->
+      <div
+  v-if="showModal"
+  class="fixed top-0 right-0 w-72 h-full bg-white border-l-4 border-gray-300 shadow-lg p-6 overflow-y-auto z-50 modal-container"
+  :style="{ boxShadow: `-4px 0 6px ${selectedNode?.strokeColor || 'rgba(0, 0, 0, 0.1)'}` }"
+>
+  <!-- Icon with Initials -->
+  <svg
+    class="absolute -top-12 left-1/2 transform -translate-x-1/2"
+    width="150"
+    height="300"
+  >
+    <circle
+      cx="80"
+      cy="150"
+      r="60"
+      :fill="'#fff'"
+      :stroke="selectedNode?.strokeColor"
+      stroke-width="2"
+    />
+    <text
+      x="80"
+      y="155"
+      text-anchor="middle"
+      font-size="40"
+      font-weight="bold"
+      :fill="selectedNode?.strokeColor"
+      dominant-baseline="middle"
+    >
+      {{ selectedNode?.name.split(' ').map(word => word[0]).join('').toUpperCase() }}
+    </text>
+  </svg>
 
-        <div
-            v-if="showModal"
-            class="modal-container"
-            :style="{
-            backgroundColor: '#fff',
-            borderColor: selectedNode?.strokeColor,
-            boxShadow: `-4px 0 6px ${selectedNode?.strokeColor }`,
-          }"
-        >
-            <svg
-                width="140"
-                height="140"
-                class="absolute -top-10 left-1/2 transform -translate-x-1/2"
-            >
-                <circle
-                    cx="65"
-                    cy="70"
-                    r="60"
-                    :fill="'#fff'"
-                    :stroke="selectedNode?.strokeColor"
-                    stroke-width="2"
-                />
-                <text
-                    x="63"
-                    y="75"
-                    text-anchor="middle"
-                    font-size="40"
-                    font-weight="bold"
-                    :fill=" selectedNode?.strokeColor "
-                    dominant-baseline="middle"
-                >
-                    {{ selectedNode?.name.split(' ').map(word =>
-                    word[0]).join('').toUpperCase() }}
-                </text>
-            </svg>
-            <h2
-                :style="{ color: selectedNode?.strokeColor }"
-                class="text-xl font-bold mb-4"
-            >
-                {{ selectedNode?.name }}
-            </h2>
-            <!--d.data.name = d.data.data.Name;
-                d.data.position = d.data.data.Department
-                d.data.title = d.data.data["Job Title"];
-                d.data.location = d.data.data.Location;
-                d.data.level = d.data.data.level;
-                d.data.performance = d.data.data.Performance;
-                d.data.project = d.data.data.Project;
-                d.data.entity = d.data.data.Entity;
-                d.data.salary = d.data.data.Salary;
-                d.data.bonus = d.data.data.bonus;
-                d.data.email = d.data.data.Email;
-                d.data.status = d.data.data.Status;-->
-            <p><strong>Email:</strong> {{ selectedNode?.email }}</p>
-            <p><strong>Department:</strong> {{ selectedNode?.position }}</p>
-            <p><strong>Job Title:</strong> {{ selectedNode?.title }}</p>
-            <p><strong>Location:</strong> {{ selectedNode?.location }}</p>
-            <p><strong>Entity:</strong> {{ selectedNode?.entity }}</p>
-            <p><strong>Performance:</strong> {{ selectedNode?.performance }}</p>
-            <p><strong>Project:</strong> {{ selectedNode?.project }}</p>
-            <p><strong>Salary: </strong> ${{ formatNumber(selectedNode?.salary)}}</p>
-            <p><strong>Bonus: </strong> ${{formatNumber(selectedNode?.bonus) }}</p>
-            <p><strong>Status:</strong> {{ selectedNode?.status }}</p>
-            <p><strong>Total Cost: </strong> ${{formatNumber(selectedNode?.totalCost) }}</p>
-            <p><strong>Management Cost: </strong> ${{formatNumber(selectedNode?.managementCost) }} </p>
-            <p><strong>IC Cost: </strong> ${{formatNumber(selectedNode?.icCost) }}</p>
-            <p><strong>Total Descendants:</strong> {{selectedNode?.totalDescendants}}</p>
-            <button
-                @click="closeModal"
-                class="close-button"
-                :style="{
-              backgroundColor: selectedNode?.strokeColor || '#000',
-              color:  '#fff',
-              
-            }"
-                @mouseover="(e) => e.target.style.backgroundColor = '#929ac4'"
-                @mouseout="(e) => e.target.style.backgroundColor = selectedNode?.strokeColor || '#000'"
-            >
-                Close
-            </button>
-        </div>
+  <!-- Content Section -->
+  <div class="mt-[150px]"> <!-- Add margin-top to create space -->
+    <h1
+      class="text-3xl font-bold text-gray-800 mb-4 "
+      :style="{ color: selectedNode?.strokeColor }"
+    >
+      {{ selectedNode?.name }}
+    </h1>
+    <p><strong>Email:</strong> {{ selectedNode?.email }}</p>
+    <p><strong>Department:</strong> {{ selectedNode?.position }}</p>
+    <p><strong>Job Title:</strong> {{ selectedNode?.title }}</p>
+    <p><strong>Location:</strong> {{ selectedNode?.location }}</p>
+    <p><strong>Entity:</strong> {{ selectedNode?.entity }}</p>
+    <p><strong>Performance:</strong> {{ selectedNode?.performance }}</p>
+    <p><strong>Project:</strong> {{ selectedNode?.project }}</p>
+    <p><strong>Salary:</strong> ${{ formatNumber(selectedNode?.salary) }}</p>
+    <p><strong>Bonus:</strong> ${{ formatNumber(selectedNode?.bonus) }}</p>
+    <p><strong>Status:</strong> {{ selectedNode?.status }}</p>
+    <p><strong>Total Cost:</strong> ${{ formatNumber(selectedNode?.totalCost) }}</p>
+    <p><strong>Management Cost:</strong> ${{ formatNumber(selectedNode?.managementCost) }}</p>
+    <p><strong>IC Cost:</strong> ${{ formatNumber(selectedNode?.icCost) }}</p>
+    <p><strong>Total Descendants:</strong> {{ selectedNode?.totalDescendants }}</p>
+    <button
+      @click="closeModal"
+      class="mt-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition w-full"
+    >
+      Close
+    </button>
+  </div>
+</div>
+
     </div>
-</template>
+  </template>
+  <style scoped>
+  .modal-container {
+      animation-name: animateside;
+      animation-duration: 0.4s;
+  }
 
-<style scoped>
-    .modal-container {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 300px;
-        height: 100%;
-        padding: 16px;
-        border-left: 3px solid #ccc;
-        overflow-y: auto;
-        z-index: 50;
-        animation-name: animateside;
-        animation-duration: 0.4s;
-    }
-
-    @keyframes animateside {
-        from {
-            right: -300px;
-            opacity: 0;
-        }
-        to {
-            right: 0;
-            opacity: 1;
-        }
-    }
-
-
-    .close-button {
-        margin-top: 16px;
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        display: block;
-        width: 100%;
-        text-align: center;
-    }
+  @keyframes animateside {
+      from {
+          right: -300px;
+          opacity: 0;
+      }
+      to {
+          right: 0;
+          opacity: 1;
+      }
+  }
 </style>
