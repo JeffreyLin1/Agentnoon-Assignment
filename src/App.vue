@@ -9,7 +9,7 @@ const csvFile = ref(
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vR-wJZpg2d_sAskHkxoR5ZFW7eFtTeljRcaiVWtoB5foj0Ac2_0QT18HXDgwm2C4eQbFHC-Zg9dEABs/pub?gid=0&single=true&output=csv'
 );
 const userInput = ref(csvFile.value);
-const zoomLevel = ref(1); // Zoom level for the tree container
+
 
 async function loadCSV(url) {
   try {
@@ -43,20 +43,12 @@ function updateCSV() {
   loadCSV(csvFile.value);
 }
 
-// Zoom control functions
-function zoomIn() {
-  zoomLevel.value = Math.min(zoomLevel.value + 0.2, 2); // Max zoom: 2x
-}
-
-function zoomOut() {
-  zoomLevel.value = Math.max(zoomLevel.value - 0.2, 0.5); // Min zoom: 0.5x
-}
 </script>
 
 <template>
     <div class="min-h-screen flex flex-col items-center justify-start pt-8"
     style="background-color: #e6eff0;">
-      <!-- Logo and Title -->
+
       <div class="mb-10 text-center" >
         <img src="/agentnoonIcon.png" alt="Logo" class="w-70 h-20 mx-auto" />
         <h1 class="text-2xl font-bold text-gray-800 mt-4">
@@ -65,7 +57,7 @@ function zoomOut() {
         </h1>
       </div>
   
-      <!-- URL Input Section -->
+
       <div class="flex flex-col items-center mb-8 w-80">
         <label
           for="csv-url"
@@ -90,7 +82,7 @@ function zoomOut() {
         </div>
       </div>
   
-      <!-- Tree Component -->
+
       <div class="rounded-lg w-full max-w-8xl h-[140vh] overflow-auto">
         <tree v-if="treeData" :data="treeData" />
       </div>

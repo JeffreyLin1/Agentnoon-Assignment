@@ -29,30 +29,28 @@
         showModal.value = false;
     }
     function calculateTotalDescendants(node, memo = new Map()) {
-    // Check if the result for this node is already in the memo cache
+
     if (memo.has(node)) {
         return memo.get(node);
     }
 
     if (!node.children) {
         node.data.totalDescendants = 0;
-        memo.set(node, 0); // Cache the result
+        memo.set(node, 0);
         return 0;
     }
 
-    // Calculate the total descendants recursively
     const totalDescendants = node.children.reduce((sum, child) => {
-        return sum + calculateTotalDescendants(child, memo) + 1; // Add 1 for the child itself
+        return sum + calculateTotalDescendants(child, memo) + 1; 
     }, 0);
 
     node.data.totalDescendants = totalDescendants;
-    memo.set(node, totalDescendants); // Cache the result
+    memo.set(node, totalDescendants); 
 
     return totalDescendants;
 }
 
 function calculateCosts(node, memo = new Map()) {
-    // Check if the result for this node is already in the memo cache
     if (memo.has(node)) {
         return memo.get(node);
     }
@@ -78,7 +76,7 @@ function calculateCosts(node, memo = new Map()) {
     let icCost = 0;
     let totalCost = parseFloat(node.data.data.Salary) || 0;
 
-    // Calculate costs recursively for children
+
     node.children.forEach((child) => {
         const childCosts = calculateCosts(child, memo);
         managementCost += childCosts.managementCost;
@@ -88,7 +86,7 @@ function calculateCosts(node, memo = new Map()) {
 
     const salary = parseFloat(node.data.data.Salary) || 0;
     if (node.children.length > 0) {
-        managementCost += salary; // Add salary to management cost if the node has children
+        managementCost += salary; 
     }
 
     const costs = {
@@ -98,13 +96,13 @@ function calculateCosts(node, memo = new Map()) {
         managementCostRatio: icCost > 0 ? (icCost / managementCost).toFixed(2) : 0,
     };
 
-    // Update the node with calculated costs
+
     node.data.managementCost = costs.managementCost;
     node.data.icCost = costs.icCost;
     node.data.totalCost = costs.totalCost;
     node.data.managementCostRatio = costs.managementCostRatio;
 
-    memo.set(node, costs); // Cache the result
+    memo.set(node, costs); 
 
     return costs;
 }
